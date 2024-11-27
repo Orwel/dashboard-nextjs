@@ -10,20 +10,27 @@ import {
 import { formatCurrency } from './utils';
 import { ITEMS_PER_PAGE } from '@/app/lib/constants';
 
-const client = new Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
+let client: Client;
 
-await client.connect();
+async function getClient() {
+  if (!client) {
+    client = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
+    await client.connect();
+  }
+  return client;
+}
 
 export async function fetchRevenue() {
+  const dbClient = await getClient();
   try {
     console.log('Fetching revenue data...');
     await new Promise((resolve) => setTimeout(resolve, 3000));
-    const result = await client.query<Revenue>('SELECT * FROM revenue');
+    const result = await dbClient.query<Revenue>('SELECT * FROM revenue');
     console.log('Data fetch completed after 3 seconds.');
     return result.rows;
   } catch (error) {
@@ -33,8 +40,9 @@ export async function fetchRevenue() {
 }
 
 export async function fetchLatestInvoices() {
+  const dbClient = await getClient();
   try {
-    const result = await client.query<LatestInvoiceRaw>(`
+    const result = await dbClient.query<LatestInvoiceRaw>(`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
       FROM invoices
       JOIN customers ON invoices.customer_id = customers.id
@@ -54,10 +62,11 @@ export async function fetchLatestInvoices() {
 }
 
 export async function fetchCardData() {
+  const dbClient = await getClient();
   try {
-    const invoiceCountPromise = client.query('SELECT COUNT(*) FROM invoices');
-    const customerCountPromise = client.query('SELECT COUNT(*) FROM customers');
-    const invoiceStatusPromise = client.query(`
+    const invoiceCountPromise = dbClient.query('SELECT COUNT(*) FROM invoices');
+    const customerCountPromise = dbClient.query('SELECT COUNT(*) FROM customers');
+    const invoiceStatusPromise = dbClient.query(`
       SELECT
         SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
         SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
@@ -90,8 +99,9 @@ export async function fetchCardData() {
 export async function fetchFilteredInvoices(query: string, currentPage: number) {
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
+  const dbClient = await getClient();
   try {
-    const result = await client.query<InvoicesTable>(`
+    const result = await dbClient.query<InvoicesTable>(`
       SELECT
         invoices.id,
         invoices.amount,
@@ -120,8 +130,9 @@ export async function fetchFilteredInvoices(query: string, currentPage: number) 
 }
 
 export async function fetchInvoicesPages(query: string) {
+  const dbClient = await getClient();
   try {
-    const result = await client.query(`
+    const result = await dbClient.query(`
       SELECT COUNT(*)
       FROM invoices
       JOIN customers ON invoices.customer_id = customers.id
@@ -141,8 +152,9 @@ export async function fetchInvoicesPages(query: string) {
 }
 
 export async function fetchInvoiceById(id: string) {
+  const dbClient = await getClient();
   try {
-    const result = await client.query<InvoiceForm>(`
+    const result = await dbClient.query<InvoiceForm>(`
       SELECT
         invoices.id,
         invoices.customer_id,
@@ -165,8 +177,9 @@ export async function fetchInvoiceById(id: string) {
 }
 
 export async function fetchCustomers() {
+  const dbClient = await getClient();
   try {
-    const result = await client.query<CustomerField>(`
+    const result = await dbClient.query<CustomerField>(`
       SELECT
         id,
         name
@@ -182,8 +195,9 @@ export async function fetchCustomers() {
 }
 
 export async function fetchFilteredCustomers(query: string) {
+  const dbClient = await getClient();
   try {
-    const result = await client.query<CustomersTableType>(`
+    const result = await dbClient.query<CustomersTableType>(`
       SELECT
         customers.id,
         customers.name,

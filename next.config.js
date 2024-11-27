@@ -1,6 +1,4 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  // Removemos la configuración experimental de PPR
-}
+const nextConfig = {}
 
-module.exports = nextConfig 
+module.exports = nextConfig
